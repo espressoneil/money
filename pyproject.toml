@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "money"
+version = "0.1.0"   # or use setuptools-scm for auto versioning
+description = "..."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
