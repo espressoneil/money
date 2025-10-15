@@ -1,7 +1,7 @@
 import numpy as np
-from economy import *
+from . import economy
 
-def find_pal_multiplier(P, econ=EconomicConditions()):
+def find_pal_multiplier(P, econ=economy.EconomicConditions()):
   threshold = None
   rate = econ.pal_rates[0]
   for key in econ.pal_rates:
@@ -9,7 +9,7 @@ def find_pal_multiplier(P, econ=EconomicConditions()):
       threshold = key
   return 1+econ.pal_rates[key]
 
-def future_value_pal_helper(initial_cost, n, econ=EconomicConditions(), value=0):
+def future_value_pal_helper(initial_cost, n, econ=economy.EconomicConditions(), value=0):
   start_value = value
   annual_cost = initial_cost
   #print(n)
@@ -22,7 +22,7 @@ def future_value_pal_helper(initial_cost, n, econ=EconomicConditions(), value=0)
   #print(start_value, "->", value)
   return value
 
-def future_value_pal(initial_cost, n, econ=EconomicConditions(), value=0):
+def future_value_pal(initial_cost, n, econ=economy.EconomicConditions(), value=0):
   if isinstance(n, float) or isinstance(n, int):
     #print(n)
     return future_value_pal_helper(initial_cost, n, econ=econ, value=value)
