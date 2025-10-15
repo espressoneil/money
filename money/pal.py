@@ -2,12 +2,16 @@ import numpy as np
 from . import economy
 
 def find_pal_multiplier(P, econ=economy.EconomicConditions()):
-  threshold = None
   rate = econ.pal_rates[0]
   for key in econ.pal_rates:
-    if not threshold or (key < P and key > threshold):
-      threshold = key
-  return 1+econ.pal_rates[key]
+      #print(P, key, rate, econ.pal_rates)
+      
+      if P >= key:
+          rate = econ.pal_rates[key]
+      else:
+          break
+  print(P, rate, econ.pal_rates)
+  return 1 + rate
 
 def future_value_pal_helper(initial_cost, n, econ=economy.EconomicConditions(), value=0):
   start_value = value
