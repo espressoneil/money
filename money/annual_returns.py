@@ -173,7 +173,7 @@ def GrowthFromReturns(returns):
   return np.array(growth)
 
 # # Example data: fitting KDE
-def RandomAnnualStockReturns(years, historical_data=annual_returns.AnnualReturnsRecent(), kde=annual_returns.AnnualReturnsKDERecent(), reversion_strength=1):
+def RandomAnnualStockReturns(years, historical_data=AnnualReturnsRecent(), kde=AnnualReturnsKDERecent(), reversion_strength=1):
   # Mean of the original data
   mean_value = np.mean(historical_data)
 
