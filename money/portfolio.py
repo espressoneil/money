@@ -241,7 +241,3 @@ class PortfolioProjection:
         break
     #print(self.value_broker)
     return self.value_broker
-
-# Example usage:
-port = PortfolioStart()
-port.display()
