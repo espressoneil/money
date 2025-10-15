@@ -2,9 +2,6 @@ import pandas as pd
 from io import StringIO
 import numpy as np
 from scipy.stats import gaussian_kde
-import seaborn as sns
-import matplotlib.pyplot as plt
-from matplotlib.ticker import ScalarFormatter
 
 def load_annual_returns():
   data = """

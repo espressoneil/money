@@ -23,7 +23,6 @@ class PortfolioStart:
   def display(self):
     # Display the portfolio's starting values
     print(f"Start 401k: ${self.start_401k:,.0f}")
-    print(f"401k Basis: {self.basis_401k * 100:.1f}%")
     print(f"Roth Start: ${self.roth_start:,.0f}")
     print(f"Roth Basis: {self.roth_basis * 100:.1f}%")
     print(f"Investment Start: ${self.invest_start:,.0f}")
@@ -242,3 +241,7 @@ class PortfolioProjection:
         break
     #print(self.value_broker)
     return self.value_broker
+
+# Example usage:
+port = PortfolioStart()
+port.display()
