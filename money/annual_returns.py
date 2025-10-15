@@ -171,3 +171,60 @@ def GrowthFromReturns(returns):
     growth.append(growth[i-1] * (1+returns[i]))
   #print(len(returns), len(growth))
   return np.array(growth)
+
+
+
+
+
+# # Example data: fitting KDE
+def RandomAnnualStockReturns(years, historical_data=annual_returns.AnnualReturnsRecent(), kde=annual_returns.AnnualReturnsKDERecent(), reversion_strength=1):
+  # Mean of the original data
+  mean_value = np.mean(historical_data)
+
+  # Sample size
+  mean_reverting_samples = []
+  mean_reverting_returns = []
+  original_samples = []
+  original_returns = []
+
+  # Define a dynamic mean-reversion strength factor (adjustable)
+  reversion_strength = 1  # Strength of pull back towards the mean after each draw
+
+  # Sample progressively with dynamic mean reversion
+  for i in range(years):
+      # Draw a sample from the KDE
+      sample = kde.resample(1)[0][0]
+
+      # Apply a reversion towards the mean, based on previous samples
+      if len(mean_reverting_samples) > 0:
+          # Compute the current mean of the drawn samples so far
+          current_sample_mean = np.mean(mean_reverting_samples)
+
+          # Adjust the new sample towards the global mean based on how far the current sample set has drifted
+          adjusted_sample = sample + reversion_strength * (mean_value - current_sample_mean)
+      else:
+          # No prior samples, just take the first sample as-is
+          adjusted_sample = sample
+
+      # Append the adjusted sample to the list
+      original_samples.append(sample)
+      mean_reverting_samples.append(adjusted_sample)
+      if i == 0:
+        original_returns.append(1+sample)
+        mean_reverting_returns.append(1+adjusted_sample)
+      else:
+        #print(1+sample, 1+adjusted_sample)
+        original_returns.append((1+sample) * original_returns[i-1])
+        mean_reverting_returns.append((1+adjusted_sample) * mean_reverting_returns[i-1])
+
+  # Convert the list to a numpy array for easy manipulation
+  mean_reverting_samples = np.array(mean_reverting_samples)
+  return original_samples, mean_reverting_samples
+
+def GrowthFromReturns(returns):
+  growth = []
+  growth.append(1+returns[0])
+  for i in range(1, len(returns)):
+    growth.append(growth[i-1] * (1+returns[i]))
+  #print(len(returns), len(growth))
+  return np.array(growth)
