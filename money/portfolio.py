@@ -1,4 +1,7 @@
 import numpy as np
+from . import economy
+from . import taxes
+from . import pal
 
 # Portfolio Start
 class PortfolioStart:
@@ -83,7 +86,7 @@ class PortfolioProjection:
     return value+earnings+conversion, new_basis
 
 
-  def simulate_portfolio(self, econ=EconomicConditions(), annuals_returns=None):
+  def simulate_portfolio(self, econ=economy.EconomicConditions(), annuals_returns=None):
     years = self.years
     x = np.arange(0, years, 1)
     self.annual_expenses = self.annual_expenses[0] * pow((1 + econ.inflation_rate), x)
@@ -141,7 +144,7 @@ class PortfolioProjection:
         pal_loan = min(pal_available, remaining_expenses)
 
         remaining_expenses -= pal_loan
-      self.value_pal[y] = future_value_pal(pal_loan, n=1, value=self.value_pal[y-1])
+      self.value_pal[y] = pal.future_value_pal(pal_loan, n=1, value=self.value_pal[y-1])
       print('pal loan:', pal_loan, pal_available, remaining_expenses)
 
       # Pay for expenses from ROTH basis
