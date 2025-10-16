@@ -6,12 +6,13 @@ from . import pal
 # Portfolio Start
 class PortfolioStart:
   def __init__(self):
-    self.start_401k = 400_000
-    self.roth_start = 200_000
+    self.start_401k = 545_000
+    self.start_cash = 0
+    self.roth_start = 275_000
     self.roth_basis = 0.8
     self.roth_taxfree_year = 28
-    self.invest_start = 1_600_000
-    self.initial_spend = 60_000
+    self.invest_start = 1_966_000
+    self.initial_spend = 80_000
     self.basis_fraction = 0.5
 
     self.use_pal = False
@@ -23,6 +24,7 @@ class PortfolioStart:
   def display(self):
     # Display the portfolio's starting values
     print(f"Start 401k: ${self.start_401k:,.0f}")
+    print(f"Start cash: ${self.cash:,.0f}")
     print(f"Roth Start: ${self.roth_start:,.0f}")
     print(f"Roth Basis: {self.roth_basis * 100:.1f}%")
     print(f"Investment Start: ${self.invest_start:,.0f}")

@@ -17,7 +17,7 @@ def future_value_pal_helper(initial_cost, n, econ=economy.EconomicConditions(), 
   start_value = value
   annual_cost = initial_cost
   #print(n)
-  for i in range(0, n):
+  for i in range(0, int(n)):
     rate = find_pal_multiplier(value, econ)
     value *= rate
     value = value + annual_cost
