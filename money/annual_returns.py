@@ -131,6 +131,7 @@ def RandomAnnualStockReturns(years, historical_data=AnnualReturnsRecent(), kde=A
   original_returns = []
 
   # Define a dynamic mean-reversion strength factor (adjustable)
+  # BUG: NOT USING PARAMETER
   reversion_strength = 1  # Strength of pull back towards the mean after each draw
 
   # Sample progressively with dynamic mean reversion

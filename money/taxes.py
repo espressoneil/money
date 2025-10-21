@@ -43,17 +43,20 @@ def calculate_capgains(income, capgains_brackets):
   return calculate_income_tax(income, tax_brackets=capgains_brackets, deduction=0)
 
 def calculate_withdrawal(target, available, gains_fraction, tax_brackets, prior_withdrawals=0):
+  if target <= 0:
+      return 0
   withdrawal = target
   capgains = calculate_capgains((withdrawal + prior_withdrawals) * gains_fraction, tax_brackets)
-  while withdrawal - capgains < target:
-    #print(withdrawal, capgains)
+  # TODO: This can overshoot when it enters a new tax bracket with a higher marginal rate.
+  while withdrawal - capgains < target-1:
+    print(withdrawal, capgains)
     withdrawal *= (target+1) / (withdrawal - capgains)
     capgains = calculate_capgains((withdrawal + prior_withdrawals) * gains_fraction, tax_brackets)
+    #break
 
   print('withdrawal of ', withdrawal, ' leads to capgains of ', capgains, '. Given prior income of ', prior_withdrawals, ' this leaves behind cash value of ', withdrawal - capgains - prior_withdrawals)
-  #print('calculate_withdrawal ', withdrawal, capgains, withdrawal - capgains, target)
-  #print(withdrawal)
   return min(available, math.ceil(withdrawal))
+
 
 def max_taxfree_withdrawal(gains_fraction, available, tax_brackets):
   if (gains_fraction <= 0):
@@ -63,17 +66,7 @@ def max_taxfree_withdrawal(gains_fraction, available, tax_brackets):
     if tax_brackets[key] > 0:
       taxfree_gains = key
       break
-  #print(taxfree_gains)
-  #print(available, taxfree_gains, gains_fraction)
   return min(available, earnings_to_total(taxfree_gains, gains_fraction))
-  #capgains = calculate_capgains(withdrawal * gains_fraction, tax_brackets)
-  #while withdrawal - capgains < target - 1:
-    #print(withdrawal, capgains)
-  #   withdrawal *= target / (withdrawal - capgains)
-  #   capgains = calculate_capgains(withdrawal * gains_fraction, tax_brackets)
-
-  # #print(withdrawal)
-  # return math.ceil(withdrawal)
 
 def earnings_to_total(earnings, basis_frac):
   if basis_frac == 0:
