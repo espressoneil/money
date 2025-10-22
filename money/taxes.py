@@ -57,6 +57,43 @@ def calculate_withdrawal(target, available, gains_fraction, tax_brackets, prior_
   print('withdrawal of ', withdrawal, ' leads to capgains of ', capgains, '. Given prior income of ', prior_withdrawals, ' this leaves behind cash value of ', withdrawal - capgains - prior_withdrawals)
   return min(available, math.ceil(withdrawal))
 
+# Attempts to withdraw 'target' aftertax dollars from the 'available' amount, given that a certain
+# fraction of the 'available' is gains. Uses the tax_brackets to 
+def calculate_withdrawal(target, available, gains_fraction, tax_brackets, prior_withdrawals=0):
+  if target <= 0:
+      return 0
+
+  if gains_fraction <= 0:
+    return min(target, available)
+
+  ordered_brackets = []
+  for key in sorted(tax_brackets):
+    # All tax brackets trigger sooner based on the prior withdrawals. Negative is fine.
+    ordered_brackets.append([key - prior_withdrawals, tax_brackets[key]])
+
+  remaining_aftertax_withdrawal = target
+  total_withdrawal = 0
+
+  for i in range(0, len(ordered_brackets)):
+    effective_taxrate = ordered_brackets[i][1] * gains_fraction
+
+    # The aftertax withdrawal is simply the remaining amount IF this is the highest bracket.
+    aftertax_withdrawal = remaining_aftertax_withdrawal
+    if i + 1 < len(ordered_brackets):
+      # any bracket start can be negative due to 'prior_withdrawals' simplifications.
+      bracket_limit = max(0, ordered_brackets[i+1][0] - max(0, ordered_brackets[i][0]))
+      max_withdrawal = bracket_limit / gains_fraction
+      max_aftertax_withdrawal = max_withdrawal * (1 - effective_taxrate)
+      aftertax_withdrawal = min(max_aftertax_withdrawal, remaining_aftertax_withdrawal)
+    withdrawal = aftertax_withdrawal / (1 - effective_taxrate)
+
+    total_withdrawal += withdrawal
+    remaining_aftertax_withdrawal -= aftertax_withdrawal
+
+    print(gains_fraction, ordered_brackets[i][1], effective_taxrate, aftertax_withdrawal, total_withdrawal)
+
+  return min(available, total_withdrawal)
+
 
 def max_taxfree_withdrawal(gains_fraction, available, tax_brackets):
   if (gains_fraction <= 0):

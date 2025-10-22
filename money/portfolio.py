@@ -12,7 +12,7 @@ class PortfolioStart:
     self.cash = 226_000
     self.roth_start = 275_000
     self.roth_basis = 0.8
-    self.roth_taxfree_year = 28
+    self.roth_taxfree_year = 2052
     self.invest_start = 1_966_000
     self.initial_spend = 80_000
     self.basis_fraction = 0.5
@@ -36,44 +36,59 @@ class PortfolioStart:
 
 
 class PortfolioProjection:
-  def __init__(self, portfolio_start: PortfolioStart, annual_returns):
+  def __init__(self, portfolio_start: PortfolioStart, annual_returns, econ = economy.EconomicConditions()):
     # Initialize lists based on the fields of PortfolioStart
     years = annual_returns.shape[0]
     self.years = years
     self.start_year = portfolio_start.start_year
     self.portfolio_start = portfolio_start
-    self.annual_returns = np.concatenate(([0], annual_returns))
-
-    self.cash = np.concatenate(([portfolio_start.cash], np.zeros(years)))
-    self.pretax = np.concatenate(([portfolio_start.pretax], np.zeros(years)))
-    self.value_roth = np.concatenate(([portfolio_start.roth_start], np.zeros(years)))
-    self.basis_roth = np.concatenate(([portfolio_start.roth_basis], np.zeros(years)))
-    self.value_broker = np.concatenate(([portfolio_start.invest_start], np.zeros(years)))
-    self.basis_broker = np.concatenate(([portfolio_start.basis_fraction], np.zeros(years)))
-    self.annual_expenses = np.concatenate(([portfolio_start.initial_spend], np.zeros(years)))
-    self.standard_deduction = np.concatenate(([portfolio_start.standard_deduction], np.zeros(years)))
-    self.value_pal = np.zeros(years+1)
-    self.taxfree_withdraw = np.zeros(years+1)
-    self.income = np.zeros(years+1)
-    self.capgains = np.zeros(years+1)
-
+    self.econ = econ
     
+
+    cash = np.concatenate(([portfolio_start.cash], np.zeros(years)))
+    pretax = np.concatenate(([portfolio_start.pretax], np.zeros(years)))
+    value_roth = np.concatenate(([portfolio_start.roth_start], np.zeros(years)))
+    basis_roth = np.concatenate(([portfolio_start.roth_basis], np.zeros(years)))
+    value_broker = np.concatenate(([portfolio_start.invest_start], np.zeros(years)))
+    basis_broker = np.concatenate(([portfolio_start.basis_fraction], np.zeros(years)))
+    annual_expenses = np.concatenate(([portfolio_start.initial_spend], np.zeros(years)))
+    standard_deduction = np.concatenate(([portfolio_start.standard_deduction], np.zeros(years)))
+    pal_loan = np.zeros(years + 1)
+    taxfree_withdraw = np.zeros(years + 1)
+    income = np.zeros(years + 1)
+    capgains = np.zeros(years + 1)
+    annual_returns = np.concatenate(([0], annual_returns))
+    inflation_rate = np.full(years + 1, self.econ.inflation_rate)
+
     m = np.stack([
-        self.cash,
-        self.pretax,
-        self.value_roth,
-        self.basis_roth,
-        self.value_broker,
-        self.basis_broker,
-        self.annual_expenses,
-        self.standard_deduction,
-        self.value_pal,
-        self.taxfree_withdraw,
-        self.income,
-        self.capgains,
-        self.annual_returns
+        cash,
+        pretax,
+        value_roth,
+        basis_roth,
+        value_broker,
+        basis_broker,
+        annual_expenses,
+        standard_deduction,
+        pal_loan,
+        taxfree_withdraw,
+        income,
+        capgains,
+        annual_returns,
+        inflation_rate,
     ], axis=1)
-    self.asset_names = [
+
+
+    years = np.arange(self.start_year, self.start_year + m.shape[0])  # define start_year as needed
+    self.df = pd.DataFrame(m, index=years, columns=self.asset_names())
+
+    self.bankrupt_year = None
+
+  def display(self, year=0):
+    print(self.df.loc[year])
+
+  @staticmethod
+  def asset_names():
+    return [
         "cash",
         "pretax",
         "value_roth",
@@ -82,34 +97,15 @@ class PortfolioProjection:
         "basis_broker",
         "annual_expenses",
         "standard_deduction",
-        "value_pal",
+        "pal_loan",
         "taxfree_withdraw",
         "income",
         "capgains",
-        "annual_returns"
+        "annual_returns",
+        "inflation_rate",
     ]
 
-    years = np.arange(self.start_year, self.start_year + m.shape[0])  # define start_year as needed
-    self.df = pd.DataFrame(m, index=years, columns=self.asset_names)
-
-    self.bankrupt = False
-
-  def display(self, year=0):
-    # Display values for a specific year (index)
-    try:
-      print(f"Year {year}:")
-      print(f"Cash Value: ${self.cash[year]:,.0f}")
-      print(f"Pretax Value: ${self.pretax[year]:,.0f}")
-      print(f"Roth Value: ${self.value_roth[year]:,.0f}")
-      print(f"Roth Basis: {self.basis_roth[year] * 100:.1f}%")
-      print(f"Broker Value: ${self.value_broker[year]:,.0f}")
-      print(f"Broker Basis: {self.basis_broker[year] * 100:.1f}%")
-      print(f"Pal Value: ${self.value_pal[year]:,.0f}")
-      print(f"Annual Expenses: ${self.annual_expenses[year]:,.0f}")
-
-    except IndexError:
-      print(f"Data for year {year} is not available.")
-
+  @staticmethod
   def growth_and_basis(value, basis_frac, growth_rate, conversion=0):
     postconversion = value + conversion
     postconversion_basis = max(0, (value * basis_frac) + conversion)
@@ -123,171 +119,204 @@ class PortfolioProjection:
     return postconversion+earnings, new_basis
 
 
-  def simulate_portfolio(self, econ=economy.EconomicConditions()):
+  def simulate_portfolio(self):
     # Simulate the portfolio over the specified number of years
     for y in range(1, self.years + 1):
-      curr_year = self.simulate_year(y, last_year = self.df.loc[self.start_year + y - 1], econ = econ)
+      curr_year = self.simulate_year(y, last_year = self.df.loc[self.start_year + y - 1])
       self.df.loc[self.start_year + y] = curr_year
-      print(curr_year)
+      if self.bankrupt_year:
+        return self.df.value_broker
+      #print(curr_year)
       #print('Year:', y)
-    return self.value_broker
+    return self.df.value_broker
 
-
-  def simulate_year(self, y, last_year, econ=economy.EconomicConditions()):
-    annual_returns = self.annual_returns
+  def simulate_year(self, y, last_year):
     #df = self.df
+    #curr_year = pd.DataFrame([0] * len(self.asset_names), index=self.asset_names).T
+    
+    curr_year = self.PrepareForNewYear(last_year)
+
+    self.GrowIRAsAndMigrate(last_year, curr_year)
+
+    # Calculate how much the brokerage portfolio has grown.
+    self.GrowStocks(last_year, curr_year)
+
+    # Sell as many stocks in the brokerage tax-free as possible.
+    self.BrokerageTaxFreeSales(last_year, curr_year)
+
+    # Personal Expenses
+    unpaid_expenses = self.PayForExpenses(curr_year)
+
+    # Deposit excess cash
+    if curr_year.cash > curr_year.annual_expenses:
+      to_deposit = curr_year.cash - curr_year.annual_expenses
+      curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(
+          curr_year.value_broker, curr_year.basis_broker, 0, conversion=to_deposit
+      )
+      curr_year.cash -= to_deposit
+    print('broker5 ', curr_year.value_broker, curr_year.basis_broker, )
+
+    return curr_year
+
+
+  def PrepareForNewYear(self, last_year):
     curr_year = last_year.copy(deep=True)
-    print(curr_year)
+    curr_year.name = last_year.name + 1
+    #print(curr_year)
     #print(last_year)
 
-    curr_year.annual_expenses = last_year.annual_expenses * (1 + econ.inflation_rate);
+    curr_year.annual_expenses = last_year.annual_expenses * (1 + self.econ.inflation_rate)
     # Assume cash on hand is deposited into high yield accounts or bonds
     # TODO: hysa/bonds don't always beat out inflation...
-    curr_year.cash = last_year.cash * (1 + econ.inflation_rate)
-    curr_year.standard_deduction = last_year.standard_deduction * (1 + econ.inflation_rate);
+    curr_year.cash = last_year.cash * (1 + self.econ.inflation_rate)
+    curr_year.standard_deduction = last_year.standard_deduction * (1 + self.econ.inflation_rate)
+    curr_year.taxfree_withdraw = 0
 
+    if curr_year.pal_loan > 0:
+      curr_year.pal_loan = pal.future_value_pal(0, n=1, econ=self.econ, value=last_year.pal_loan)
+
+
+    return curr_year
+
+  def GrowIRAsAndMigrate(self, curr_year, last_year):
     # Use up standard deduction to migrate from pretax to roth. Considered income.
+    print(curr_year)
+    print(last_year)
     roth_migration = min(curr_year.standard_deduction, last_year.pretax)
-    curr_year.pretax = PortfolioProjection.growth_and_basis(last_year.pretax, 1, annual_returns[y], conversion=-roth_migration)[0]
+    curr_year.pretax = PortfolioProjection.growth_and_basis(last_year.pretax, 1, curr_year.annual_returns, conversion=-roth_migration)[0]
     curr_year.value_roth, curr_year.basis_roth = PortfolioProjection.growth_and_basis(
-        last_year.value_roth, last_year.basis_roth, annual_returns[y], conversion=roth_migration
+        last_year.value_roth, last_year.basis_roth, curr_year.annual_returns, conversion=roth_migration
     )
     curr_year.income = roth_migration
     print('roth ', curr_year.value_roth, curr_year.basis_roth, ', pretax ', curr_year.pretax)
 
-    # Calculate how much the brokerage portfolio has grown.
-    print('broker0 ', last_year.value_broker, last_year.basis_broker, annual_returns[y], last_year.value_broker * annual_returns[y])
-    #prior_basis = last_year.basis_broker
+
+    
+
+  def GrowStocks(self, last_year, curr_year):
+    print('broker0 ', last_year.value_broker, last_year.basis_broker, curr_year.annual_returns, last_year.value_broker * curr_year.annual_returns)
     curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(
-        last_year.value_broker, last_year.basis_broker, annual_returns[y]
+        last_year.value_broker, last_year.basis_broker, curr_year.annual_returns
     )
     print('broker2 ', curr_year.value_broker, curr_year.basis_broker)
 
-    # Personal Expenses
-    remaining_expenses = last_year.annual_expenses
-
-    # Pay for expenses with brokerage taxfree capital gains and withdrawal.
+  def BrokerageTaxFreeSales(self, last_year, curr_year):
     # TODO: track capital losses here. 
-    curr_year.cash = last_year.cash + taxes.max_taxfree_withdrawal(
-        (1 - curr_year.basis_broker), curr_year.value_broker, econ.single_capgains_brackets
+    curr_year.taxfree_withdraw = taxes.max_taxfree_withdrawal(
+        (1 - curr_year.basis_broker), curr_year.value_broker, self.econ.single_capgains_brackets
     )
-    print('broker3 ', curr_year.value_broker, curr_year.basis_broker, econ.single_capgains_brackets, curr_year.cash)
-    # TODO: handle capital losses
+    curr_year.cash = last_year.cash + curr_year.taxfree_withdraw
+    # TODO: track capital losses
+    curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(
+        value=last_year.value_broker, basis_frac = last_year.basis_broker,
+        growth_rate=0, conversion = -curr_year.taxfree_withdraw
+    )
 
-    #print(cash)
-    curr_year.value_broker -= curr_year.taxfree_withdraw
-    paid_with_cash = min(curr_year.taxfree_withdraw, remaining_expenses)
-    remaining_expenses -= paid_with_cash
-    curr_year.cash -= paid_with_cash
+    print('broker3 ', curr_year.value_broker, curr_year.basis_broker, self.econ.single_capgains_brackets, curr_year.cash)
+    
 
-    # Pay for expenses from PAL
-    pal_loan = 0
-    pal_available = 0
-    if self.portfolio_start.use_pal and remaining_expenses > 0:
-      pal_available = max(0, curr_year.value_broker * self.portfolio_start.pal_cap - last_year.value_pal)
+
+  def PayForExpenses(self, curr_year):
+    remaining_expenses = curr_year.annual_expenses
+
+    # Pay for expenses with loose cash first.
+    # If cash is negative for some reason, add it into it expenses.
+    cash_payment = min(remaining_expenses, curr_year.cash)
+    remaining_expenses -= cash_payment
+    curr_year.cash -= cash_payment
+
+    if remaining_expenses <= 0:
+      return
+
+    # Pay for expenses from PAL (if configured to do so)
+    if self.portfolio_start.use_pal:
+      pal_available = max(0, curr_year.value_broker * self.portfolio_start.pal_cap - curr_year.pal_loan)
       pal_loan = min(pal_available, remaining_expenses)
 
       remaining_expenses -= pal_loan
-    curr_year.value_pal = pal.future_value_pal(pal_loan, n=1, value=last_year.value_pal)
-    print('pal loan:', pal_loan, pal_available, remaining_expenses)
+      curr_year.pal_loan = pal.future_value_pal(pal_loan, n=0, value=curr_year.pal_loan)
+      print('additional pal loan to pay expenses:', pal_loan, ' from avail ', pal_available, ' with remaining expenses ',  remaining_expenses)
+
+    if remaining_expenses <= 0:
+      return
 
     # Pay for expenses from ROTH basis
     roth_withdrawal = 0
-    if remaining_expenses > 0:
-      roth_basis = curr_year.basis_roth if self.portfolio_start.roth_taxfree_year > y else 1
+    if curr_year.value_roth > 0:
+      roth_basis = curr_year.basis_roth if self.portfolio_start.roth_taxfree_year > curr_year.name else 1
+      print(roth_basis)
       total_roth_basis = curr_year.value_roth * roth_basis
+      print(total_roth_basis)
       roth_withdrawal = min(remaining_expenses, total_roth_basis)
-      curr_year.value_roth -= roth_withdrawal
-      curr_year.basis_roth = (total_roth_basis - roth_withdrawal) / curr_year.value_roth
+      curr_year.value_roth, curr_year.basis_roth = self.growth_and_basis(
+        curr_year.value_roth, basis_frac = roth_basis,
+        growth_rate = 0, conversion=-roth_withdrawal)
+      print(curr_year)
+
       remaining_expenses -= roth_withdrawal
+
+    
+    full_brokerage_withdrawal = 0
+
+    if remaining_expenses <= 0:
+      print("returning")
+      return
 
     # Pay for expenses from Brokerage
     # UNTESTED
-    full_brokerage_withdrawal = 0
-    posttax_brokerage_withdrawal = 0
+    full_broker_funds = curr_year.taxfree_withdraw + remaining_expenses
+    # We estimate the total amount, given taxes, that we will need to withdraw this year.
+    # We later subtract out the part that was already withdrawn.
+    full_brokerage_withdrawal = taxes.calculate_withdrawal(
+        full_broker_funds, curr_year.value_broker, (1 - curr_year.basis_broker),
+        self.econ.single_capgains_brackets, prior_withdrawals=curr_year.taxfree_withdraw
+    )
+    #brokerage_withdrawal_taxes = calculate_income_tax(full_brokerage_withdrawal, tax_brackets=econ.single_capgains_brackets, deduction=0)
+    brokerage_withdrawal_taxes = taxes.calculate_capgains(
+        income=full_brokerage_withdrawal * (1 - curr_year.basis_broker),
+        capgains_brackets=self.econ.single_capgains_brackets
+    )
 
-    if remaining_expenses > 0:
-      full_broker_funds = curr_year.taxfree_withdraw + remaining_expenses
-      full_brokerage_withdrawal = taxes.calculate_withdrawal(
-          full_broker_funds, curr_year.value_broker, (1 - curr_year.basis_broker),
-          econ.single_capgains_brackets, prior_withdrawals=curr_year.taxfree_withdraw
-      )
-      #brokerage_withdrawal_taxes = calculate_income_tax(full_brokerage_withdrawal, tax_brackets=econ.single_capgains_brackets, deduction=0)
-      brokerage_withdrawal_taxes = taxes.calculate_capgains(
-          income=full_brokerage_withdrawal * (1 - curr_year.basis_broker),
-          capgains_brackets=econ.single_capgains_brackets
-      )
+    # Subtract out the taxes and the already-happened taxfree withdrawal.
+    net_cash = full_brokerage_withdrawal - brokerage_withdrawal_taxes - curr_year.taxfree_withdraw
+    # calculate_withdrawal  103842.38301855858 8746.522725101613 95095.86029345696 95094.86029345698
+    # taxable brokerage         8  15623.855280730495  15489.294 79471.00501272648         103843      (94961)        8882.699999999999           15489.294987273519
+    print('Given a withrawal of', full_brokerage_withdrawal, ' this leads to capgains of ', brokerage_withdrawal_taxes, '. Prior withdrawal was ', curr_year.taxfree_withdraw, ' leaving ', net_cash, ' to pay off expenses. Remaining Expenses are ', remaining_expenses, ' limited by: ', curr_year.value_broker)
+    #print('taxable brokerage ', y, remaining_expenses, net_cash, curr_year.taxfree_withdraw, full_brokerage_withdrawal, brokerage_withdrawal_taxes, net_cash)
+    additional_withdrawal = full_brokerage_withdrawal - curr_year.taxfree_withdraw
+    if additional_withdrawal > 0:
+      curr_year.value_broker -= additional_withdrawal
+    remaining_expenses -= net_cash
+    # taxable brokerage         8  135.4102934569819   15488.44  79471.00501272648         103842 8882.55             15488.444987273513
 
-      net_cash = full_brokerage_withdrawal - brokerage_withdrawal_taxes - curr_year.taxfree_withdraw
-      # calculate_withdrawal  103842.38301855858 8746.522725101613 95095.86029345696 95094.86029345698
-      # taxable brokerage         8  15623.855280730495  15489.294 79471.00501272648         103843      (94961)        8882.699999999999           15489.294987273519
-      print('Given a withrawal of', full_brokerage_withdrawal, ' this leads to capgains of ', brokerage_withdrawal_taxes, '. Prior withdrawal was ', curr_year.taxfree_withdraw, ' leaving ', net_cash, ' to pay off expenses. Remaining Expenses are ', remaining_expenses, ' limited by: ', curr_year.value_broker)
-      #print('taxable brokerage ', y, remaining_expenses, net_cash, curr_year.taxfree_withdraw, full_brokerage_withdrawal, brokerage_withdrawal_taxes, net_cash)
-      additional_withdrawal = full_brokerage_withdrawal - curr_year.taxfree_withdraw
-      if additional_withdrawal > 0:
-        curr_year.value_broker -= additional_withdrawal
-      remaining_expenses -= net_cash
-      # taxable brokerage         8  135.4102934569819   15488.44  79471.00501272648         103842 8882.55             15488.444987273513
-
-    print('broker4 ', curr_year.value_broker, curr_year.basis_broker, last_year.value_broker, last_year.basis_broker)
-
+    print('broker4 ', curr_year.value_broker, curr_year.basis_broker)
+    
+    if remaining_expenses <= 0:
+      return
+    
     # Pay for expenses from Roth earnings
     # TODO
+
+    if remaining_expenses <= 0:
+      return
 
     # Pay for expenses from pretax
     # TODO
 
-    # Return any remaining cash to the brokerage account
-    # TODO
-    if curr_year.cash > 0:
-      curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(
-          curr_year.value_broker, curr_year.basis_broker, 0, conversion=curr_year.cash
-      )
-      curr_year.cash = 0
-    print('broker5 ', curr_year.value_broker, curr_year.basis_broker, )
+    if remaining_expenses <= 0:
+      return
 
-    #curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(curr_year.value_broker, curr_year.basis_broker, growth_rate=0, conversion=remaining_deposit)
-    #print(curr_year.value_broker)
-    # Calculate how many expenses are being paid from PAL
-    # pal_loan = 0
-    # withdrawal = 0
-    # if self.portfolio_start.use_pal:
-    #   pal_available = max(0, curr_year.value_broker * self.portfolio_start.pal_cap - last_year.value_pal)
-    #   pal_loan = min(pal_available, remaining_expenses)
-    #   curr_year.value_pal = future_value_pal(pal_loan, n=1, value=last_year.value_pal)
-    #   #print(curr_year.value_pal)
-    #   remaining_expenses -= pal_loan
-    #   #print(pal_available, self.portfolio_start.pal_cap)
-    # else:
-    #   # Calculate the amount you have to withdraw to pay expenses.
-    #   #print("Regular Withdrawal")
-    #   withdrawal = calculate_withdrawal(remaining_expenses, curr_year.value_broker-1, curr_year.basis_broker, econ.single_capgains_brackets)
-    # #print(curr_year.value_broker)
-    # # Subtract the annual expense from brokerage money
-    # curr_year.value_broker -= withdrawal
-    # remaining_expenses -= withdrawal
 
-    # # If expenses aren't satisfied, start withdrawing from roth.
-    # roth_withdrawal = 0
-    # if remaining_expenses > 0:
-    #   # TODO: IMPLEMENT TAXATION
+    # This should now be negative
+    curr_year.cash -= remaining_expenses
 
-    #   roth_withdrawal = calculate_withdrawal(expenses, curr_year.value_roth, curr_year.basis_roth, econ.single_capgains_brackets)
-    #   #print("Roth Withdrawal: ", roth_withdrawal)
-    #   #roth_withdrawal = min(expenses, curr_year.value_roth)
-    #   curr_year.value_roth -= roth_withdrawal
-    #   remaining_expenses -= roth_withdrawal
+    # Two bugs: Why doesn't the PAL case withdraw from broker?
+    # Why isn't the PAL case satisfied by a roth withdrawal?
+    print('bankrupt:', curr_year.name, curr_year.cash)
+    print('bankrupt withdrawals:', curr_year.taxfree_withdraw, full_brokerage_withdrawal, roth_withdrawal)
+    print('bankrupt broker:', curr_year.value_broker, curr_year.basis_broker)
+    print('bankrupt roth:', curr_year.value_roth, curr_year.basis_roth)
+    print('bankrupt pretax:', curr_year.pretax)
+    self.bankrupt_year = curr_year.name
 
-    if remaining_expenses > 0:
-      # Two bugs: Why doesn't the PAL case withdraw from broker?
-      # Why isn't the PAL case satisfied by a roth withdrawal?
-      # 8 135.4102934569819 79471.00501272648 103842 0.0 1403702.4077441266 327048.4343263615 357141.94833330397
-      print('bankrupt:', y, remaining_expenses)
-      print('bankrupt withdrawals:', curr_year.taxfree_withdraw, full_brokerage_withdrawal, roth_withdrawal)
-      print('bankrupt broker:', curr_year.value_broker, curr_year.basis_broker)
-      print('bankrupt roth:', curr_year.value_roth, curr_year.basis_roth)
-      print('bankrupt pretax:', curr_year.pretax)
-      self.bankrupt = True
-      return curr_year
-    #print(curr_year.value_broker)
-    return curr_year
+    return remaining_expenses

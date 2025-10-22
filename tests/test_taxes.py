@@ -34,6 +34,37 @@ def test_calculate_income_tax(income, deduction, tax):
     assert taxes.calculate_capgains(income-deduction, test_brackets) == tax
 
 # TODO: rewrite calculate_withdrawal with a deterministic approach and write a test here.
+@pytest.mark.parametrize("target, available, gains_fraction, prior_withdrawals, expected", [
+   # The taxrate specified above is 10%, so use that in the divisor to find the total.
+   (100, 1000, 1, 0, 100/0.9),
+   (100, 1000, 0.5, 0, 100/0.95),
+
+   # The withdrawal is capped by the available funds.
+   (100, 102, 0.5, 0, 102),
+
+   # We already withdrew 10000 earlier, so use the higher 0.2 bracket that starts at 10000.
+   (100, 1000, 1, 10000, 100/0.8),
+   (100, 1000, 0.5, 10000, 100/0.9),
+   (100, 1000, 0.25, 10000, 100/0.95),
+
+   # We already withdrew 20000 earlier, so use the higher 0.2 bracket that starts at 10000.
+   # This verifies that the implementation doesn't glitch out at high prior withdrawal values.
+   (100, 1000, 1, 20000, 100/0.8),
+   (100, 1000, 0.5, 20000, 100/0.9),
+
+   # Try out the other brackets and inbetween values for exhaustive coverage.
+   (100, 1000, 1, 1e5, 100/0.7),
+   (100, 1000, 0.5, 1e5, 100/0.85),
+   (100, 1000, 1, 2e5, 100/0.7),
+   (100, 1000, 0.5, 2e5, 100/0.85),
+   (100, 1000, 1, 1e6, 100/0.6),
+   (100, 1000, 0.5, 1e6, 100/0.8),
+   (100, 1000, 1, 2e6, 100/0.6),
+   (100, 1000, 0.5, 2e6, 100/0.8),
+])
+def test_calculate_withdrawal(target, available, gains_fraction, prior_withdrawals, expected):
+  assert taxes.calculate_withdrawal(target, available, gains_fraction, test_brackets, prior_withdrawals) == expected
+
 
 @pytest.mark.parametrize("earnings, basis_frac, expected", [
    (100, 0.5, 200),
