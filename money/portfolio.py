@@ -7,6 +7,8 @@ from . import pal
 # Portfolio Start
 class PortfolioStart:
   def __init__(self):
+    self.logging_level = 1
+
     self.start_year = 2025
     self.pretax = 545_000
     self.cash = 226_000
@@ -130,8 +132,9 @@ class PortfolioProjection:
       curr_year.annual_returns = self.df.loc[self.start_year + y].annual_returns
       self.df.loc[self.start_year + y] = curr_year
       if self.bankrupt_year:
-        print('bankrupt curr_year:', curr_year)
-        print('bankrupt last_year:', last_year)
+        if self.start.logging_level >= 1:
+          print('bankrupt curr_year:', curr_year)
+          print('bankrupt last_year:', last_year)
         return self.df.value_broker
       #print(curr_year)
       #print('Year:', y)
@@ -321,7 +324,8 @@ class PortfolioProjection:
 
     # Two bugs: Why doesn't the PAL case withdraw from broker?
     # Why isn't the PAL case satisfied by a roth withdrawal?
-    print('bankrupt last payments:', cash_payment, full_brokerage_withdrawal, roth_withdrawal)
+    if self.start.logging_level >= 1:
+      print('bankrupt last payments:', cash_payment, full_brokerage_withdrawal, roth_withdrawal)
     
 
     return
