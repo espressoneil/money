@@ -224,7 +224,7 @@ class PortfolioProjection:
 
   def PayForExpenses(self, curr_year):
     remaining_expenses = curr_year.annual_expenses
-    print("expenses:", remaining_expenses)
+    #print("expenses:", remaining_expenses)
 
     # Pay for expenses with loose cash first.
     # If cash is negative for some reason, add it into it expenses.
@@ -232,8 +232,8 @@ class PortfolioProjection:
     remaining_expenses -= cash_payment
     curr_year.cash -= cash_payment
 
-    print("cash payment", cash_payment)
-    print(curr_year)
+    #print("cash payment", cash_payment)
+    #print(curr_year)
     if remaining_expenses <= 0:
       return
 
@@ -244,7 +244,7 @@ class PortfolioProjection:
 
       remaining_expenses -= pal_loan
       curr_year.pal_loan += pal_loan
-      print('additional pal loan to pay expenses:', pal_loan, ' from avail ', pal_available, ' with remaining expenses ',  remaining_expenses)
+      #print('additional pal loan to pay expenses:', pal_loan, ' from avail ', pal_available, ' with remaining expenses ',  remaining_expenses)
 
     if remaining_expenses <= 0:
       return
