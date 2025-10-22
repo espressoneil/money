@@ -8,6 +8,11 @@ from money import portfolio as pf
 from money import annual_returns
 from money import economy
 
+from io import StringIO 
+import sys
+
+
+
 @pytest.mark.parametrize("principal, basis, growth, conversion, result, postbasis", [
    (1000, 0.5, 1.0, 0, 2000.0, 0.25),
    (1000, 0.25, 0.25, 0, 1250.0, 0.2),
@@ -150,6 +155,44 @@ def test_pay_expenses(expenses, cash, pal, broker, bbasis, roth, rbasis):
   if expected.cash < 0 or folio.bankrupt_year is not None:
     assert expected.cash < 0
     assert folio.bankrupt_year is not None
+
+
+class Capturing(list):
+    def __enter__(self):
+        self._stdout = sys.stdout
+        sys.stdout = self._stringio = StringIO()
+        return self
+    def __exit__(self, *args):
+        self.extend(self._stringio.getvalue().splitlines())
+        del self._stringio    # free up some memory
+        sys.stdout = self._stdout
+
+@pytest.mark.parametrize(
+   "logging_level, expected_empty", [
+   # We start logging every year's details at >= 3.
+   (0, True), (1, True), (2, True), (3, False), (4, False),
+])
+def test_logging(logging_level, expected_empty):
+  with Capturing() as output:
+    simulated_returns = annual_returns.RandomAnnualStockReturns(years=5, reversion_strength=2)[1]
+    pd.set_option('display.float_format', '{:.3f}'.format)
+
+
+    start = pf.PortfolioStart()
+    start.use_pal = True
+    start.logging_level = logging_level
+    folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
+    folio.simulate_portfolio()
+    assert folio.df.pretax.loc[2025] != folio.df.pretax.loc[2026]
+
+  for line in output:
+    print(line)
+  if expected_empty:
+    assert len(output) == 0
+  else:
+    assert len(output) > 0
+
+
 
 
 

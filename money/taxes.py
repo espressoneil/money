@@ -88,7 +88,9 @@ def max_taxfree_withdrawal(gains_fraction, available, tax_brackets):
     if tax_brackets[key] > 0:
       taxfree_gains = key
       break
-  return min(available, earnings_to_total(taxfree_gains, gains_fraction))
+  max_withdrawal = earnings_to_total(taxfree_gains, gains_fraction)
+  #print(f"{max_withdrawal} max from {taxfree_gains} allowed gains with fraction {gains_fraction}")
+  return min(available, max_withdrawal)
 
 def earnings_to_total(earnings, basis_frac):
   if basis_frac == 0:

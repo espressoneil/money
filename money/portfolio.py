@@ -137,20 +137,15 @@ class PortfolioProjection:
           print('bankrupt curr_year:', curr_year)
           print('bankrupt last_year:', last_year)
         return self.df.value_broker
-      #print(curr_year)
+      if self.logging_level >= 3:
+        print(y, curr_year)
       #print('Year:', y)
     return self.df.value_broker
 
   def simulate_year(self, curr_year):
     self.GrowIRAsAndMigrate(curr_year)
-
-    # Calculate how much the brokerage portfolio has grown.
     self.GrowStocks(curr_year)
-
-    # Sell as many stocks in the brokerage tax-free as possible.
     self.BrokerageTaxFreeSales(curr_year)
-
-    # Personal Expenses
     self.PayForExpenses(curr_year)
 
     # Deposit excess cash
@@ -160,7 +155,6 @@ class PortfolioProjection:
           curr_year.value_broker, curr_year.basis_broker, 0, conversion=to_deposit
       )
       curr_year.cash -= to_deposit
-    #print('broker5 ', curr_year.value_broker, curr_year.basis_broker, )
 
     return curr_year
 
