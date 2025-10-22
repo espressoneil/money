@@ -10,7 +10,7 @@ def find_pal_multiplier(P, econ=economy.EconomicConditions()):
           rate = econ.pal_rates[key]
       else:
           break
-  print(P, rate, econ.pal_rates)
+  #print(P, rate, econ.pal_rates)
   return 1 + rate
 
 def future_value_pal_helper(initial_cost, n, econ=economy.EconomicConditions(), value=0):
@@ -23,7 +23,7 @@ def future_value_pal_helper(initial_cost, n, econ=economy.EconomicConditions(), 
     value = value + annual_cost
     annual_cost *= 1+econ.inflation_rate
     #print(rate, annual_cost, econ.inflation_rate)
-  print(start_value, "->", value)
+  #print(start_value, "->", value)
   return value
 
 def future_value_pal(initial_cost, n, econ=economy.EconomicConditions(), value=0):
