@@ -58,6 +58,7 @@ class PortfolioProjection:
     income = np.zeros(years + 1)
     capgains = np.zeros(years + 1)
     annual_returns = np.concatenate(([0], annual_returns))
+    print(annual_returns)
     inflation_rate = np.full(years + 1, self.econ.inflation_rate)
 
     m = np.stack([
@@ -76,11 +77,11 @@ class PortfolioProjection:
         annual_returns,
         inflation_rate,
     ], axis=1)
-
+    
 
     years = np.arange(self.start_year, self.start_year + m.shape[0])  # define start_year as needed
     self.df = pd.DataFrame(m, index=years, columns=self.asset_names())
-
+    print(self.df.annual_returns)
     self.bankrupt_year = None
 
   def display(self, year=0):
@@ -122,19 +123,25 @@ class PortfolioProjection:
   def simulate_portfolio(self):
     # Simulate the portfolio over the specified number of years
     for y in range(1, self.years + 1):
-      curr_year = self.simulate_year(y, last_year = self.df.loc[self.start_year + y - 1])
+      last_year = self.df.loc[self.start_year + y - 1]
+      curr_year = self.df.loc[self.start_year + y]
+      self.simulate_year(y, last_year = last_year, curr_year = curr_year)
+      # The only field we don't want to copy from last year is the annual returns.
+      curr_year.annual_returns = self.df.loc[self.start_year + y].annual_returns
       self.df.loc[self.start_year + y] = curr_year
       if self.bankrupt_year:
+        print('bankrupt curr_year:', curr_year)
+        print('bankrupt last_year:', last_year)
         return self.df.value_broker
       #print(curr_year)
       #print('Year:', y)
     return self.df.value_broker
 
-  def simulate_year(self, y, last_year):
+  def simulate_year(self, y, last_year, curr_year):
     #df = self.df
     #curr_year = pd.DataFrame([0] * len(self.asset_names), index=self.asset_names).T
     
-    curr_year = self.PrepareForNewYear(last_year)
+    curr_year = self.PrepareForNewYear(last_year, curr_year)
 
     self.GrowIRAsAndMigrate(last_year, curr_year)
 
@@ -159,8 +166,12 @@ class PortfolioProjection:
     return curr_year
 
 
-  def PrepareForNewYear(self, last_year):
-    curr_year = last_year.copy(deep=True)
+  def PrepareForNewYear(self, last_year, curr_year):
+    for field in ["cash", "pretax", "value_roth", "basis_roth",
+                  "value_broker", "basis_broker", "annual_expenses",
+                  "standard_deduction", "pal_loan"]:
+      curr_year[field] = last_year[field]
+    #curr_year = last_year.copy(deep=True)
     curr_year.name = last_year.name + 1
     #print(curr_year)
     #print(last_year)
@@ -308,14 +319,11 @@ class PortfolioProjection:
 
     # This should now be negative
     curr_year.cash -= remaining_expenses
+    self.bankrupt_year = curr_year.name
 
     # Two bugs: Why doesn't the PAL case withdraw from broker?
     # Why isn't the PAL case satisfied by a roth withdrawal?
-    print('bankrupt:', curr_year.name, curr_year.cash)
-    print('bankrupt withdrawals:', curr_year.taxfree_withdraw, full_brokerage_withdrawal, roth_withdrawal)
-    print('bankrupt broker:', curr_year.value_broker, curr_year.basis_broker)
-    print('bankrupt roth:', curr_year.value_roth, curr_year.basis_roth)
-    print('bankrupt pretax:', curr_year.pretax)
-    self.bankrupt_year = curr_year.name
+    print('bankrupt last payments:', cash_payment, full_brokerage_withdrawal, roth_withdrawal)
+    
 
-    return remaining_expenses
+    return

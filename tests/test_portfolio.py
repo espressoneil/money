@@ -29,7 +29,8 @@ def test_prepare_new_year():
   start = pf.PortfolioStart()
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
   initial_year = folio.df.loc[2025]
-  prepped_year = folio.PrepareForNewYear(initial_year)
+  prepped_year = folio.df.loc[2026]
+  folio.PrepareForNewYear(initial_year, prepped_year)
 
   assert prepped_year.name == initial_year.name + 1
   for field in ['cash', 'annual_expenses', 'standard_deduction']:
@@ -46,10 +47,12 @@ def test_grow_iras_migrate():
   start = pf.PortfolioStart()
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
   last_year = folio.df.loc[2025]
-  curr_year = folio.PrepareForNewYear(last_year)
+  curr_year = folio.df.loc[2026]
+  folio.PrepareForNewYear(last_year, curr_year)
 
   folio.GrowIRAsAndMigrate(curr_year=curr_year, last_year=last_year)
-  assert curr_year.pretax == (last_year.pretax - curr_year.standard_deduction) * (1 + curr_year.annual_returns)
+  expected_pretax = (last_year.pretax - curr_year.standard_deduction) * (1 + curr_year.annual_returns)
+  assert curr_year.pretax == expected_pretax
   new_roth_value = (last_year.value_roth + curr_year.standard_deduction) * (1 + curr_year.annual_returns)
   assert curr_year.value_roth == new_roth_value
   new_basis_raw = (last_year.value_roth * last_year.basis_roth + curr_year.standard_deduction)
@@ -60,7 +63,8 @@ def test_grow_stocks():
   start = pf.PortfolioStart()
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
   last_year = folio.df.loc[2025]
-  curr_year = folio.PrepareForNewYear(last_year)
+  curr_year = folio.df.loc[2026]
+  folio.PrepareForNewYear(last_year, curr_year)
 
   folio.GrowStocks(curr_year=curr_year, last_year=last_year)
 
@@ -77,7 +81,8 @@ def test_broker_taxfree():
   start = pf.PortfolioStart()
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns, econ=econ)
   last_year = folio.df.loc[2025]
-  curr_year = folio.PrepareForNewYear(last_year)
+  curr_year = folio.df.loc[2026]
+  folio.PrepareForNewYear(last_year, curr_year)
   curr_year.basis_broker = basis
 
   folio.BrokerageTaxFreeSales(last_year=last_year, curr_year=curr_year)
@@ -115,7 +120,8 @@ def test_pay_expenses(expenses, cash, broker, bbasis, roth, rbasis, tax_threshol
   start = pf.PortfolioStart()
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns, econ=econ)
   last_year = folio.df.loc[2025]
-  curr_year = folio.PrepareForNewYear(last_year)
+  curr_year = folio.df.loc[2026]
+  folio.PrepareForNewYear(last_year, curr_year)
   curr_year.pretax = 0
   expected = curr_year.copy(deep=True)
   
@@ -141,13 +147,15 @@ def test_pay_expenses(expenses, cash, broker, bbasis, roth, rbasis, tax_threshol
 
 def test_calculate_income_tax():
     simulated_returns = annual_returns.RandomAnnualStockReturns(years=2, reversion_strength=2)[1]
-    pd.set_option('display.float_format', '{:.0f}'.format)
+    pd.set_option('display.float_format', '{:.3f}'.format)
 
 
     start = pf.PortfolioStart()
     folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
     folio.simulate_portfolio()
-    # print(folio.df.loc[2025])
+    #print(simulated_returns)
+    print(folio.df.annual_returns)
+    #print(folio.df.annual_returns.loc[2025])
     # print(folio.df.loc[2026])
     # print(folio.df.loc[2027])
     assert folio.df.pretax.loc[2025] != folio.df.pretax.loc[2026]
