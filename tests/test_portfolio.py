@@ -92,34 +92,39 @@ def test_broker_taxfree():
 
 # Every list is a before/after value for the specific test
 @pytest.mark.parametrize(
-   "expenses, cash,          broker,    bbasis, roth,      rbasis,  tax_threshold", [
+   "expenses, cash,       pal,      broker,    bbasis, roth,      rbasis", [
    # No expenses -> no change
-   (0,        [10, 10],      [10, 10],  [1, 1], [10, 10],  [1, 1],  0),
+   (0,        [10, 10],   [0, 0],   [10, 10],  [1, 1], [10, 10],  [1, 1]),
    # Pay for expenses out of cash, go negative/bankrupt if no balance anywhere.
-   (100,      [100, 0],      [0, 0],    [1, 1], [0, 0],    [1, 1],  0),
-   (150,      [100, -50],    [0, 0],    [1, 1], [0, 0],    [0, 0],  0),
-   # Take money from brokerage if not enough cash.
-   (100,      [0, 0],        [100, 0],  [1, 1], [0, 0],    [1, 1],  0),
-   (101,      [0, -1],       [100, 0],  [1, 1], [0, 0],    [1, 1],  0),
+   (100,      [100, 0],   [0, 0],   [0, 0],    [1, 1], [0, 0],    [1, 1]),
+   (150,      [100, -50], [50, 50], [0, 0],    [1, 1], [0, 0],    [0, 0]),
+   # Take out a pal loan up to cap before tapping into brokerage.
+   (10,       [0, 0],   [0, 10],    [100, 100], [1, 1], [0, 0],    [1, 1]),
+   (20,       [0, 0],   [0, 10],    [100, 90], [1, 1], [0, 0],    [1, 1]),
+   # Take money from brokerage if insufficient cash and pal-capped.
+   (100,      [0, 0],     [50, 50], [100, 0],  [1, 1], [0, 0],    [1, 1]),
+   (101,      [0, -1],    [50, 50], [100, 0],  [1, 1], [0, 0],    [1, 1]),
    # Take money out of cash before anything, and roth basis before brokerage.
-   (100,      [90, 0],       [20, 20],  [1, 1], [10, 0],   [1, 1],  0),
+   (100,      [90, 0],    [50, 50], [20, 20],  [1, 1], [10, 0],   [1, 1]),
    # Take money out of cash before anything, and brokerage before roth earnings.
-   (100,      [90, 0],       [20, 10],  [1, 1], [10, 10],  [0, 0],  0),
+   (100,      [90, 0],    [50, 50], [20, 10],  [1, 1], [10, 10],  [0, 0]),
    # Take money from roth if nothing available in cash/brokerage.
-   (100,      [0, 0],        [0, 0],    [1, 1], [100, 0],  [1, 1],  0),
-   (101,      [0, -1],       [0, 0],    [1, 1], [100, 0],  [1, 1],  0),
+   (100,      [0, 0],     [0, 0], [0, 0],    [1, 1], [100, 0],  [1, 1]),
+   (101,      [0, -1],    [0, 0], [0, 0],    [1, 1], [100, 0],  [1, 1]),
    # Cash is negative here, so it should be added to expenses.
-   (100,      [-10, 0],      [0, 0],    [1, 1], [110, 0],  [1, 1],  0),
+   (100,      [-10, 0],   [0, 0], [0, 0],    [1, 1], [110, 0],  [1, 1]),
    # Account for 75% earnings taxation on brokerage/roth
-   (100,      [0, 0],        [410, 10], [0, 0], [0, 0],    [1, 1],  0),
+   (100,      [0, 0],     [50, 50], [410, 10], [0, 0], [0, 0],    [1, 1]),
    # TODO: implement withdrawal from roth earnings.
-   #(100,      [0, 0],        [0, 0],    [1, 1], [500, 100],  [0, 0],  0),
+   #(100,     [0, 0],     [0, 0], [0, 0],    [1, 1], [500, 100],  [0, 0]),
 ])
-def test_pay_expenses(expenses, cash, broker, bbasis, roth, rbasis, tax_threshold):
+def test_pay_expenses(expenses, cash, pal, broker, bbasis, roth, rbasis):
   econ = economy.EconomicConditions()
-  econ.single_capgains_brackets = {tax_threshold:0.75}
+  econ.single_capgains_brackets = {0:0.75}
   simulated_returns = annual_returns.RandomAnnualStockReturns(years=2, reversion_strength=2)[1]
   start = pf.PortfolioStart()
+  start.use_pal = True
+  start.pal_cap = 0.1
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns, econ=econ)
   last_year = folio.df.loc[2025]
   curr_year = folio.df.loc[2026]
@@ -130,11 +135,12 @@ def test_pay_expenses(expenses, cash, broker, bbasis, roth, rbasis, tax_threshol
   # Set the before/after state
   curr_year.annual_expenses, expected.annual_expenses = expenses, expenses
   curr_year.cash, expected.cash = cash
+  curr_year.pal_loan, expected.pal_loan = pal
   curr_year.value_broker, expected.value_broker = broker
   curr_year.basis_broker, expected.basis_broker = bbasis
   curr_year.value_roth, expected.value_roth = roth
   curr_year.basis_roth, expected.basis_roth = rbasis
-  curr_year.taxfree_withdraw, expected.taxfree_withdraw = tax_threshold, tax_threshold
+  curr_year.taxfree_withdraw, expected.taxfree_withdraw = 0, 0
 
   # Pay for expenses and expect the specified result.
   folio.PayForExpenses(curr_year=curr_year)
@@ -148,16 +154,18 @@ def test_pay_expenses(expenses, cash, broker, bbasis, roth, rbasis, tax_threshol
 
 
 def test_calculate_income_tax():
-    simulated_returns = annual_returns.RandomAnnualStockReturns(years=2, reversion_strength=2)[1]
+    simulated_returns = annual_returns.RandomAnnualStockReturns(years=5, reversion_strength=2)[1]
     pd.set_option('display.float_format', '{:.3f}'.format)
 
 
     start = pf.PortfolioStart()
+    start.use_pal = True
     folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
     folio.simulate_portfolio()
     #print(simulated_returns)
-    #print(folio.df.value_broker)
+    print(folio.df.pal_loan)
     #print(folio.df.annual_returns.loc[2025])
     # print(folio.df.loc[2026])
     # print(folio.df.loc[2027])
     assert folio.df.pretax.loc[2025] != folio.df.pretax.loc[2026]
+    #assert False == True

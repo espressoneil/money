@@ -23,7 +23,7 @@ def future_value_pal_helper(initial_cost, n, econ=economy.EconomicConditions(), 
     value = value + annual_cost
     annual_cost *= 1+econ.inflation_rate
     #print(rate, annual_cost, econ.inflation_rate)
-  #print(start_value, "->", value)
+  print(start_value, "->", value)
   return value
 
 def future_value_pal(initial_cost, n, econ=economy.EconomicConditions(), value=0):
