@@ -124,8 +124,9 @@ class PortfolioProjection:
     # Simulate the portfolio over the specified number of years
     for y in range(1, self.years + 1):
       last_year = self.df.loc[self.start_year + y - 1]
-      curr_year = self.df.loc[self.start_year + y]
-      self.simulate_year(y, last_year = last_year, curr_year = curr_year)
+      #curr_year = self.df.loc[self.start_year + y]
+      curr_year = self.PrepareForNewYear(last_year, curr_year = self.df.loc[self.start_year + y])
+      self.simulate_year(curr_year = curr_year)
       # The only field we don't want to copy from last year is the annual returns.
       curr_year.annual_returns = self.df.loc[self.start_year + y].annual_returns
       self.df.loc[self.start_year + y] = curr_year
@@ -137,22 +138,17 @@ class PortfolioProjection:
       #print('Year:', y)
     return self.df.value_broker
 
-  def simulate_year(self, y, last_year, curr_year):
-    #df = self.df
-    #curr_year = pd.DataFrame([0] * len(self.asset_names), index=self.asset_names).T
-    
-    curr_year = self.PrepareForNewYear(last_year, curr_year)
-
-    self.GrowIRAsAndMigrate(last_year, curr_year)
+  def simulate_year(self, curr_year):
+    self.GrowIRAsAndMigrate(curr_year)
 
     # Calculate how much the brokerage portfolio has grown.
-    self.GrowStocks(last_year, curr_year)
+    self.GrowStocks(curr_year)
 
     # Sell as many stocks in the brokerage tax-free as possible.
-    self.BrokerageTaxFreeSales(last_year, curr_year)
+    self.BrokerageTaxFreeSales(curr_year)
 
     # Personal Expenses
-    unpaid_expenses = self.PayForExpenses(curr_year)
+    self.PayForExpenses(curr_year)
 
     # Deposit excess cash
     if curr_year.cash > curr_year.annual_expenses:
@@ -189,14 +185,14 @@ class PortfolioProjection:
 
     return curr_year
 
-  def GrowIRAsAndMigrate(self, curr_year, last_year):
+  def GrowIRAsAndMigrate(self, curr_year):
     # Use up standard deduction to migrate from pretax to roth. Considered income.
     #print(curr_year)
     #print(last_year)
-    roth_migration = min(curr_year.standard_deduction, last_year.pretax)
-    curr_year.pretax = PortfolioProjection.growth_and_basis(last_year.pretax, 1, curr_year.annual_returns, conversion=-roth_migration)[0]
+    roth_migration = min(curr_year.standard_deduction, curr_year.pretax)
+    curr_year.pretax = PortfolioProjection.growth_and_basis(curr_year.pretax, 1, curr_year.annual_returns, conversion=-roth_migration)[0]
     curr_year.value_roth, curr_year.basis_roth = PortfolioProjection.growth_and_basis(
-        last_year.value_roth, last_year.basis_roth, curr_year.annual_returns, conversion=roth_migration
+        curr_year.value_roth, curr_year.basis_roth, curr_year.annual_returns, conversion=roth_migration
     )
     curr_year.income = roth_migration
     #print('roth ', curr_year.value_roth, curr_year.basis_roth, ', pretax ', curr_year.pretax)
@@ -204,22 +200,22 @@ class PortfolioProjection:
 
     
 
-  def GrowStocks(self, last_year, curr_year):
+  def GrowStocks(self, curr_year):
     #print('broker0 ', last_year.value_broker, last_year.basis_broker, curr_year.annual_returns, last_year.value_broker * curr_year.annual_returns)
     curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(
-        last_year.value_broker, last_year.basis_broker, curr_year.annual_returns
+        curr_year.value_broker, curr_year.basis_broker, curr_year.annual_returns, conversion=0
     )
-    #print('broker2 ', curr_year.value_broker, curr_year.basis_broker)
+    print('broker2 ', curr_year.value_broker, curr_year.basis_broker)
 
-  def BrokerageTaxFreeSales(self, last_year, curr_year):
+  def BrokerageTaxFreeSales(self, curr_year):
     # TODO: track capital losses here. 
     curr_year.taxfree_withdraw = taxes.max_taxfree_withdrawal(
         (1 - curr_year.basis_broker), curr_year.value_broker, self.econ.single_capgains_brackets
     )
-    curr_year.cash = last_year.cash + curr_year.taxfree_withdraw
+    curr_year.cash = curr_year.cash + curr_year.taxfree_withdraw
     # TODO: track capital losses
     curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(
-        value=last_year.value_broker, basis_frac = last_year.basis_broker,
+        value=curr_year.value_broker, basis_frac = curr_year.basis_broker,
         growth_rate=0, conversion = -curr_year.taxfree_withdraw
     )
 

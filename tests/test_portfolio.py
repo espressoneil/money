@@ -1,6 +1,7 @@
 # tests/unit/test_economy.py
 import pytest
 
+import math
 import pandas as pd
 
 from money import portfolio as pf
@@ -47,30 +48,32 @@ def test_grow_iras_migrate():
   start = pf.PortfolioStart()
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
   last_year = folio.df.loc[2025]
-  curr_year = folio.df.loc[2026]
+  curr_year = folio.PrepareForNewYear(last_year, curr_year = folio.df.loc[2026])
   folio.PrepareForNewYear(last_year, curr_year)
 
-  folio.GrowIRAsAndMigrate(curr_year=curr_year, last_year=last_year)
+  folio.GrowIRAsAndMigrate(curr_year=curr_year)
   expected_pretax = (last_year.pretax - curr_year.standard_deduction) * (1 + curr_year.annual_returns)
-  assert curr_year.pretax == expected_pretax
+  assert math.isclose(curr_year.pretax, expected_pretax)
   new_roth_value = (last_year.value_roth + curr_year.standard_deduction) * (1 + curr_year.annual_returns)
-  assert curr_year.value_roth == new_roth_value
+  assert math.isclose(curr_year.value_roth, new_roth_value)
   new_basis_raw = (last_year.value_roth * last_year.basis_roth + curr_year.standard_deduction)
-  assert curr_year.basis_roth == new_basis_raw / new_roth_value
+  assert math.isclose(curr_year.basis_roth, new_basis_raw / new_roth_value)
 
 def test_grow_stocks():
   simulated_returns = annual_returns.RandomAnnualStockReturns(years=2, reversion_strength=2)[1]
+  print(simulated_returns)
   start = pf.PortfolioStart()
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
   last_year = folio.df.loc[2025]
-  curr_year = folio.df.loc[2026]
-  folio.PrepareForNewYear(last_year, curr_year)
+  curr_year = folio.PrepareForNewYear(last_year, curr_year = folio.df.loc[2026])
 
-  folio.GrowStocks(curr_year=curr_year, last_year=last_year)
+  folio.GrowStocks(curr_year=curr_year)
+  print(last_year.value_broker, curr_year.value_broker, simulated_returns)
 
   new_broker_value, new_broker_basis = folio.growth_and_basis(last_year.value_broker, last_year.basis_broker, curr_year.annual_returns)
   assert curr_year.value_broker == new_broker_value
   assert curr_year.basis_broker == new_broker_basis
+  #assert False == True
 
 def test_broker_taxfree():
   econ = economy.EconomicConditions()
@@ -81,11 +84,10 @@ def test_broker_taxfree():
   start = pf.PortfolioStart()
   folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns, econ=econ)
   last_year = folio.df.loc[2025]
-  curr_year = folio.df.loc[2026]
-  folio.PrepareForNewYear(last_year, curr_year)
+  curr_year = folio.PrepareForNewYear(last_year, curr_year = folio.df.loc[2026])
   curr_year.basis_broker = basis
 
-  folio.BrokerageTaxFreeSales(last_year=last_year, curr_year=curr_year)
+  folio.BrokerageTaxFreeSales(curr_year=curr_year)
   assert curr_year.taxfree_withdraw == taxfree_amount / (1.0-basis)
 
 # Every list is a before/after value for the specific test
@@ -154,7 +156,7 @@ def test_calculate_income_tax():
     folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
     folio.simulate_portfolio()
     #print(simulated_returns)
-    print(folio.df.annual_returns)
+    print(folio.df.value_broker)
     #print(folio.df.annual_returns.loc[2025])
     # print(folio.df.loc[2026])
     # print(folio.df.loc[2027])
