@@ -44,6 +44,7 @@ class PortfolioProjection:
     self.years = years
     self.start_year = portfolio_start.start_year
     self.portfolio_start = portfolio_start
+    self.logging_level = portfolio_start.logging_level
     self.econ = econ
     
 
@@ -132,7 +133,7 @@ class PortfolioProjection:
       curr_year.annual_returns = self.df.loc[self.start_year + y].annual_returns
       self.df.loc[self.start_year + y] = curr_year
       if self.bankrupt_year:
-        if self.start.logging_level >= 1:
+        if self.logging_level >= 1:
           print('bankrupt curr_year:', curr_year)
           print('bankrupt last_year:', last_year)
         return self.df.value_broker
@@ -317,14 +318,13 @@ class PortfolioProjection:
     if remaining_expenses <= 0:
       return
 
-
     # This should now be negative
     curr_year.cash -= remaining_expenses
     self.bankrupt_year = curr_year.name
 
     # Two bugs: Why doesn't the PAL case withdraw from broker?
     # Why isn't the PAL case satisfied by a roth withdrawal?
-    if self.start.logging_level >= 1:
+    if self.logging_level >= 1:
       print('bankrupt last payments:', cash_payment, full_brokerage_withdrawal, roth_withdrawal)
     
 
