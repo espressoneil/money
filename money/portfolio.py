@@ -58,7 +58,7 @@ class PortfolioProjection:
     income = np.zeros(years + 1)
     capgains = np.zeros(years + 1)
     annual_returns = np.concatenate(([0], annual_returns))
-    print(annual_returns)
+    #print(annual_returns)
     inflation_rate = np.full(years + 1, self.econ.inflation_rate)
 
     m = np.stack([
@@ -124,7 +124,6 @@ class PortfolioProjection:
     # Simulate the portfolio over the specified number of years
     for y in range(1, self.years + 1):
       last_year = self.df.loc[self.start_year + y - 1]
-      #curr_year = self.df.loc[self.start_year + y]
       curr_year = self.PrepareForNewYear(last_year, curr_year = self.df.loc[self.start_year + y])
       self.simulate_year(curr_year = curr_year)
       # The only field we don't want to copy from last year is the annual returns.
@@ -205,7 +204,7 @@ class PortfolioProjection:
     curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(
         curr_year.value_broker, curr_year.basis_broker, curr_year.annual_returns, conversion=0
     )
-    print('broker2 ', curr_year.value_broker, curr_year.basis_broker)
+    #print('broker2 ', curr_year.value_broker, curr_year.basis_broker)
 
   def BrokerageTaxFreeSales(self, curr_year):
     # TODO: track capital losses here. 
