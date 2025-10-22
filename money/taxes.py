@@ -42,21 +42,6 @@ def calculate_income_tax(income, tax_brackets, deduction):
 def calculate_capgains(income, capgains_brackets):
   return calculate_income_tax(income, tax_brackets=capgains_brackets, deduction=0)
 
-def calculate_withdrawal(target, available, gains_fraction, tax_brackets, prior_withdrawals=0):
-  if target <= 0:
-      return 0
-  withdrawal = target
-  capgains = calculate_capgains((withdrawal + prior_withdrawals) * gains_fraction, tax_brackets)
-  # TODO: This can overshoot when it enters a new tax bracket with a higher marginal rate.
-  while withdrawal - capgains < target-1:
-    print(withdrawal, capgains)
-    withdrawal *= (target+1) / (withdrawal - capgains)
-    capgains = calculate_capgains((withdrawal + prior_withdrawals) * gains_fraction, tax_brackets)
-    #break
-
-  print('withdrawal of ', withdrawal, ' leads to capgains of ', capgains, '. Given prior income of ', prior_withdrawals, ' this leaves behind cash value of ', withdrawal - capgains - prior_withdrawals)
-  return min(available, math.ceil(withdrawal))
-
 # Attempts to withdraw 'target' aftertax dollars from the 'available' amount, given that a certain
 # fraction of the 'available' is gains. Uses the tax_brackets to 
 def calculate_withdrawal(target, available, gains_fraction, tax_brackets, prior_withdrawals=0):
@@ -90,7 +75,7 @@ def calculate_withdrawal(target, available, gains_fraction, tax_brackets, prior_
     total_withdrawal += withdrawal
     remaining_aftertax_withdrawal -= aftertax_withdrawal
 
-    print(gains_fraction, ordered_brackets[i][1], effective_taxrate, aftertax_withdrawal, total_withdrawal)
+    #print(gains_fraction, ordered_brackets[i][1], effective_taxrate, aftertax_withdrawal, total_withdrawal)
 
   return min(available, total_withdrawal)
 

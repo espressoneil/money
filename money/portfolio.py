@@ -154,7 +154,7 @@ class PortfolioProjection:
           curr_year.value_broker, curr_year.basis_broker, 0, conversion=to_deposit
       )
       curr_year.cash -= to_deposit
-    print('broker5 ', curr_year.value_broker, curr_year.basis_broker, )
+    #print('broker5 ', curr_year.value_broker, curr_year.basis_broker, )
 
     return curr_year
 
@@ -180,25 +180,25 @@ class PortfolioProjection:
 
   def GrowIRAsAndMigrate(self, curr_year, last_year):
     # Use up standard deduction to migrate from pretax to roth. Considered income.
-    print(curr_year)
-    print(last_year)
+    #print(curr_year)
+    #print(last_year)
     roth_migration = min(curr_year.standard_deduction, last_year.pretax)
     curr_year.pretax = PortfolioProjection.growth_and_basis(last_year.pretax, 1, curr_year.annual_returns, conversion=-roth_migration)[0]
     curr_year.value_roth, curr_year.basis_roth = PortfolioProjection.growth_and_basis(
         last_year.value_roth, last_year.basis_roth, curr_year.annual_returns, conversion=roth_migration
     )
     curr_year.income = roth_migration
-    print('roth ', curr_year.value_roth, curr_year.basis_roth, ', pretax ', curr_year.pretax)
+    #print('roth ', curr_year.value_roth, curr_year.basis_roth, ', pretax ', curr_year.pretax)
 
 
     
 
   def GrowStocks(self, last_year, curr_year):
-    print('broker0 ', last_year.value_broker, last_year.basis_broker, curr_year.annual_returns, last_year.value_broker * curr_year.annual_returns)
+    #print('broker0 ', last_year.value_broker, last_year.basis_broker, curr_year.annual_returns, last_year.value_broker * curr_year.annual_returns)
     curr_year.value_broker, curr_year.basis_broker = PortfolioProjection.growth_and_basis(
         last_year.value_broker, last_year.basis_broker, curr_year.annual_returns
     )
-    print('broker2 ', curr_year.value_broker, curr_year.basis_broker)
+    #print('broker2 ', curr_year.value_broker, curr_year.basis_broker)
 
   def BrokerageTaxFreeSales(self, last_year, curr_year):
     # TODO: track capital losses here. 
@@ -212,7 +212,7 @@ class PortfolioProjection:
         growth_rate=0, conversion = -curr_year.taxfree_withdraw
     )
 
-    print('broker3 ', curr_year.value_broker, curr_year.basis_broker, self.econ.single_capgains_brackets, curr_year.cash)
+    #print('broker3 ', curr_year.value_broker, curr_year.basis_broker, self.econ.single_capgains_brackets, curr_year.cash)
     
 
 
@@ -235,7 +235,7 @@ class PortfolioProjection:
 
       remaining_expenses -= pal_loan
       curr_year.pal_loan = pal.future_value_pal(pal_loan, n=0, value=curr_year.pal_loan)
-      print('additional pal loan to pay expenses:', pal_loan, ' from avail ', pal_available, ' with remaining expenses ',  remaining_expenses)
+      #print('additional pal loan to pay expenses:', pal_loan, ' from avail ', pal_available, ' with remaining expenses ',  remaining_expenses)
 
     if remaining_expenses <= 0:
       return
@@ -244,14 +244,14 @@ class PortfolioProjection:
     roth_withdrawal = 0
     if curr_year.value_roth > 0:
       roth_basis = curr_year.basis_roth if self.portfolio_start.roth_taxfree_year > curr_year.name else 1
-      print(roth_basis)
+      #print(roth_basis)
       total_roth_basis = curr_year.value_roth * roth_basis
-      print(total_roth_basis)
+      #print(total_roth_basis)
       roth_withdrawal = min(remaining_expenses, total_roth_basis)
       curr_year.value_roth, curr_year.basis_roth = self.growth_and_basis(
         curr_year.value_roth, basis_frac = roth_basis,
         growth_rate = 0, conversion=-roth_withdrawal)
-      print(curr_year)
+      #print(curr_year)
 
       remaining_expenses -= roth_withdrawal
 
@@ -259,7 +259,6 @@ class PortfolioProjection:
     full_brokerage_withdrawal = 0
 
     if remaining_expenses <= 0:
-      print("returning")
       return
 
     # Pay for expenses from Brokerage
@@ -281,7 +280,7 @@ class PortfolioProjection:
     net_cash = full_brokerage_withdrawal - brokerage_withdrawal_taxes - curr_year.taxfree_withdraw
     # calculate_withdrawal  103842.38301855858 8746.522725101613 95095.86029345696 95094.86029345698
     # taxable brokerage         8  15623.855280730495  15489.294 79471.00501272648         103843      (94961)        8882.699999999999           15489.294987273519
-    print('Given a withrawal of', full_brokerage_withdrawal, ' this leads to capgains of ', brokerage_withdrawal_taxes, '. Prior withdrawal was ', curr_year.taxfree_withdraw, ' leaving ', net_cash, ' to pay off expenses. Remaining Expenses are ', remaining_expenses, ' limited by: ', curr_year.value_broker)
+    #print('Given a withrawal of', full_brokerage_withdrawal, ' this leads to capgains of ', brokerage_withdrawal_taxes, '. Prior withdrawal was ', curr_year.taxfree_withdraw, ' leaving ', net_cash, ' to pay off expenses. Remaining Expenses are ', remaining_expenses, ' limited by: ', curr_year.value_broker)
     #print('taxable brokerage ', y, remaining_expenses, net_cash, curr_year.taxfree_withdraw, full_brokerage_withdrawal, brokerage_withdrawal_taxes, net_cash)
     additional_withdrawal = full_brokerage_withdrawal - curr_year.taxfree_withdraw
     if additional_withdrawal > 0:
@@ -289,7 +288,7 @@ class PortfolioProjection:
     remaining_expenses -= net_cash
     # taxable brokerage         8  135.4102934569819   15488.44  79471.00501272648         103842 8882.55             15488.444987273513
 
-    print('broker4 ', curr_year.value_broker, curr_year.basis_broker)
+    #print('broker4 ', curr_year.value_broker, curr_year.basis_broker)
     
     if remaining_expenses <= 0:
       return
