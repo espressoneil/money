@@ -81,7 +81,7 @@ class PortfolioProjection:
 
     years = np.arange(self.start_year, self.start_year + m.shape[0])  # define start_year as needed
     self.df = pd.DataFrame(m, index=years, columns=self.asset_names())
-    print(self.df.annual_returns)
+    #print(self.df.annual_returns)
     self.bankrupt_year = None
 
   def display(self, year=0):

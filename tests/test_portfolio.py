@@ -156,7 +156,7 @@ def test_calculate_income_tax():
     folio = pf.PortfolioProjection(portfolio_start = start, annual_returns=simulated_returns)
     folio.simulate_portfolio()
     #print(simulated_returns)
-    print(folio.df.value_broker)
+    #print(folio.df.value_broker)
     #print(folio.df.annual_returns.loc[2025])
     # print(folio.df.loc[2026])
     # print(folio.df.loc[2027])
